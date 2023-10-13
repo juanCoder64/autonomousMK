@@ -3,9 +3,8 @@ import matplotlib.pyplot as plt
 df = pd.read_csv('Ndata.csv')
 from sklearn import preprocessing
 from sklearn.model_selection import train_test_split
-from keras.models import save_model
+from keras.models import Sequential , save_model
 from keras.layers import Dense
-from keras import Sequential
 import joblib
 
 dataset=df.values
