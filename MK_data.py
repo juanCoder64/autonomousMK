@@ -22,23 +22,23 @@ Dcap=False
 drifting=False
 with mss.mss() as sct:
     while "Screen capturing":
-        monitor = {"top":391, "left":119, "width": 444, "height":332}
-        img = np.array(sct.grab(monitor))   
-        screen = np.array(sct.grab({"top":0, "left":0, "width": 1366, "height":768}))
-        screen = cv.resize(screen,(1366,768))
+        monitor = {"top":391, "left":119, "width": 444, "height":332} #Part of the screen to capture
+        img = np.array(sct.grab(monitor))  # Take the screenshot
+        screen = np.array(sct.grab({"top":0, "left":0, "width": 1366, "height":768})) 
+        screen = cv.resize(screen,(1366,768)) 
         #writer.write(screen)
         keys = ''
-        if keyboard.is_pressed('h'):
+        if keyboard.is_pressed('h'): #key to activate playing mode
             dale = True
 
-        if keyboard.is_pressed('r'):
+        if keyboard.is_pressed('r'): #key to activate data capture mode
             Dcap = True
 
-        if keyboard.is_pressed('g'):
+        if keyboard.is_pressed('g'): #key to deactivate all modes
             dale = False
             Dcap=False
 
-        keys = 'p'
+        keys = 'p' #writes p to the game to keep the player going forward
 
         #im1 = pyautogui.screenshot()
         #img = np.array(im1)
@@ -52,23 +52,23 @@ with mss.mss() as sct:
         recorte = frame[cy-ho2:cy-int(ho2/2), cx-wo2:cx+wo2]
         hsv = cv.cvtColor(recorte, cv.COLOR_BGR2HSV)
 
-        low = np.array([0, 0, 63])
-        high = np.array([38, 53, 124])
-        tLow = np.array([56, 143, 154])
+        low = np.array([0, 0, 63]) #road color range
+        high = np.array([38, 53, 124]) 
+        tLow = np.array([56, 143, 154]) #tunnel color range
         tHigh = np.array([58, 188, 240])
-        iLow = np.array([112, 0, 152])
+        iLow = np.array([112, 0, 152]) #itembox color range
         iHigh = np.array([169, 255, 255])
 
-        frecorte = frame[cy-50:cy-5, cx-wo2:cx+wo2]
+        frecorte = frame[cy-50:cy-5, cx-wo2:cx+wo2] #frame for itembox and tunnel detection
         fhsv = cv.cvtColor(frecorte, cv.COLOR_BGR2HSV)
-        ifiltro = cv.inRange(fhsv, iLow, iHigh)
-        tfiltro = cv.inRange(fhsv, tLow, tHigh)
-        filtro = cv.inRange(hsv, low, high)
+        ifiltro = cv.inRange(fhsv, iLow, iHigh) #itembox filter
+        tfiltro = cv.inRange(fhsv, tLow, tHigh) #tunnel filter
+        filtro = cv.inRange(hsv, low, high) #road filter
 
         #cv.imshow('itemBox', ifiltro)
         #cv.imshow('tuberías', tfiltro)
         
-        #centro del camino
+        #road detection
         rx = 0
         object = cv.moments(filtro)
         if object['m00'] > 5000:
@@ -84,9 +84,8 @@ with mss.mss() as sct:
             cv.drawContours(recorte, [approx],0,(0,255,0),2)
 
         
-
+        #itembox detection
         ifiltro = cv.dilate(ifiltro, (15,15), iterations=3)
-
         icloser = 50000
         cnts = cv.findContours(ifiltro, cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)
         cnts = imutils.grab_contours(cnts)
@@ -108,6 +107,7 @@ with mss.mss() as sct:
         cnts = cv.findContours(tfiltro, cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)
         cnts = imutils.grab_contours(cnts)
 
+        #tunnel detection
         for c in cnts:
             cY=0 
             cX=0
@@ -119,7 +119,7 @@ with mss.mss() as sct:
             if abs(cX-wo2) <= abs(tcloser):
                 tcloser=cX-wo2
                 cv.circle(frecorte, (cX, cY), 7, (255, 255, 255), -1)
-                cv.putText(frecorte, "tubo", (cX - 20, cY - 20),
+                cv.putText(frecorte, "tunnel", (cX - 20, cY - 20),
                 cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)    
 
         #cv.line(frecorte,(tcloser+wo2,0),(tcloser+wo2,50),(255,0,0),5,1)
@@ -127,16 +127,18 @@ with mss.mss() as sct:
 
 
 
-        #vuelta
         diferenciaR = rx-wo2
         #print(tcloser,icloser,treshold)
-        if drifting: 
-            treshold-=3
+        #if drifting: 
+        #    treshold-=3
+
+        #selects the closest objects to the player 
         road=abs(diferenciaR) > treshold
         tubo= abs(tcloser)<8
         box=abs(icloser)<7
         if tcloser == -100: tcloser=0
 
+        #writes data to the csv in case of data capture mode
         if Dcap:
             if diferenciaR != -100:
                 print(diferenciaR,(tcloser!=50000)*tcloser,(icloser!=50000)*icloser,keyboard.is_pressed('a')+0,keyboard.is_pressed('d')+0)
@@ -150,20 +152,23 @@ with mss.mss() as sct:
                 writer.writerows(datos)
             datos=[]
         
-        
+        #plays the game using the trained model in case of playing mode
         if dale:
+            #makes inference using the model
             use_samples = np.array([[diferenciaR/23.155,(tcloser!=50000)*tcloser, (icloser!=50000)*icloser]])
             transformData = sc.transform(use_samples)
             predictions = model(use_samples)
             
+            #gets the certainty of pressing a or d
             p1=(predictions[0,1].numpy())
             p2=(predictions[0,0].numpy())
             
 
             #print(p1,p2,predictions[0,1].numpy(),predictions[0,0].numpy())
+            
             keyboard.release('p')
             keyboard.press('p')
-
+            #presses a or d depending on the certainty of the model
             if p2>0.9 or p1 >0.9:
                 if(p1<p2):
                     keyboard.release('d')
