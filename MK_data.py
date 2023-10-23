@@ -3,6 +3,10 @@ import cv2 as cv
 import numpy as np
 import csv
 #import pyautogui
+from matplotlib.animation import FuncAnimation
+
+import matplotlib.pyplot as plt
+import numpy as np
 import keyboard
 import imutils
 import mss
@@ -17,7 +21,10 @@ import numpy as np
 import array
 model = load_model("./model", compile = True)
 #fourcc = cv.VideoWriter_fourcc('m','p','4','v')
-Dcap=False
+
+Dcap=0
+tresh=0.1
+
 #writer= cv.VideoWriter('marioKart.avi', -1, 20, (1366,768))
 drifting=False
 with mss.mss() as sct:
@@ -154,22 +161,27 @@ with mss.mss() as sct:
         
         #plays the game using the trained model in case of playing mode
         if dale:
+
             #makes inference using the model
             use_samples = np.array([[diferenciaR/23.155,(tcloser!=50000)*tcloser, (icloser!=50000)*icloser]])
             transformData = sc.transform(use_samples)
+            
             predictions = model(use_samples)
             
-            #gets the certainty of pressing a or d
+            
+            #gets the probability of each action
             p1=(predictions[0,1].numpy())
             p2=(predictions[0,0].numpy())
             
-
             #print(p1,p2,predictions[0,1].numpy(),predictions[0,0].numpy())
-            
             keyboard.release('p')
             keyboard.press('p')
-            #presses a or d depending on the certainty of the model
-            if p2>0.9 or p1 >0.9:
+
+            #if keyboard.is_pressed('a') or keyboard.is_pressed('d'):
+            #    tresh=abs(p1-p2)
+            tresh=.22
+            print(p2,p1,abs(p1-p2),tresh)            
+            if abs(p1-p2)>tresh:
                 if(p1<p2):
                     keyboard.release('d')
                     print("a")
@@ -191,6 +203,7 @@ with mss.mss() as sct:
         if cv.waitKey(20) == 27:
             break
 
+plt.show()
 cv.destroyAllWindows()
 #print(datos)
 
