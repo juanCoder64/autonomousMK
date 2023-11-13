@@ -160,10 +160,11 @@ with mss.mss() as sct:
             datos=[]
         
         #plays the game using the trained model in case of playing mode
+        
         if dale:
 
             #makes inference using the model
-            use_samples = np.array([[diferenciaR/23.155,(tcloser!=50000)*tcloser, (icloser!=50000)*icloser]])
+            use_samples = np.array([[diferenciaR/23.155,0,0]])#(tcloser!=50000)*tcloser, (icloser!=50000)*icloser]])
             transformData = sc.transform(use_samples)
             
             predictions = model(use_samples)
@@ -172,16 +173,19 @@ with mss.mss() as sct:
             #gets the probability of each action
             p1=(predictions[0,1].numpy())
             p2=(predictions[0,0].numpy())
-            
+            cv.rectangle(img, (0, 0), (int(p1*100), 10), (0, 255, 0), -1)
+            cv.rectangle(img, (0, 10), (int(p2*100), 20), (0, 0, 255), -1)
+            cv.imshow('probabilidad', img)
             #print(p1,p2,predictions[0,1].numpy(),predictions[0,0].numpy())
             keyboard.release('p')
             keyboard.press('p')
 
             #if keyboard.is_pressed('a') or keyboard.is_pressed('d'):
             #    tresh=abs(p1-p2)
-            tresh=.22
-            print(p2,p1,abs(p1-p2),tresh)            
-            if abs(p1-p2)>tresh:
+            tresh=.1
+            print(abs(p1-p2))
+            #
+            if (p1>.5 or p2>.5)and abs(p1-p2)>tresh:
                 if(p1<p2):
                     keyboard.release('d')
                     print("a")
