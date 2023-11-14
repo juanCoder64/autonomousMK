@@ -9,6 +9,7 @@ dale = False
 treshold=25
 count=0
 lx=70
+err=0
 #fourcc = cv.VideoWriter_fourcc('m','p','4','v')
 Rvals=[]
 #writer= cv.VideoWriter('marioKart.avi', -1, 20, (1366,768))
@@ -16,18 +17,91 @@ drifting=False
 hold=0
 def nothing ():
     pass
+def recalc(img):
+    print("nroad recalculated")
+    cfy=int(img.shape[0]/2)
+    cfx=int(img.shape[1]/2)
+    delta=10
+    img=frecorte[cfy-10:cfy+10,cfx-10:cfx+10]
+    img=cv.GaussianBlur(img,(51,51),0)
+    img=cv.cvtColor(img,cv.COLOR_BGR2HSV)
+    Rhue=np.min(img[:,:,0])-delta
+    Rsat=np.min(img[:,:,1])-delta
+    Rval=np.min(img[:,:,2])-delta
+    low=np.array([Rhue,Rsat,Rval])
+    Rhue=np.max(img[:,:,0])+delta
+    Rsat=np.max(img[:,:,1])+delta
+    Rval=np.max(img[:,:,2])+delta
+    high=np.array([Rhue,Rsat,Rval])
+    cv.imshow("Ncolor",img)
+    return low,high
+    
+def detect(hsv, low, high, err):
+    rd=cv.GaussianBlur(hsv,(21,21),0)
+    rd=cv.inRange(rd,low,high)
+    cnt,_=cv.findContours(rd, cv.RETR_TREE,cv.CHAIN_APPROX_SIMPLE)
+    rx=0
+    closer=50000
+    R=None
+    for c in cnt:
+            M = cv.moments(c)
+            if M["m00"] != 0:
+                RCx = int(M["m10"] / M["m00"])
+                x, y, w, h = cv.boundingRect(c)
+                if abs(RCx-100)<closer:# and w*h>3500:
+                    closer=abs(RCx-100)
+                    rx=RCx
+                    R=c
+    if R is not None:
+        cv.drawContours(recorte, [R], -1, (120, 255, 0), 2)
+        cv.circle(recorte, (rx, 25), 40, (255, 0, 0), 2)
+    else:
+        #recalculate min and max
+        print("road not found!" )
+        err+=1
+    return rx,err
+
+def roadfeatures(str, low, high, img, hsv):
+    filtro = cv.inRange(hsv,low, high)
+    filtro = cv.dilate(filtro, (15,15), iterations=3)
+    closer =50000
+    cnts = cv.findContours(filtro, cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)
+    cnts = imutils.grab_contours(cnts)
+    for c in cnts:
+        cY=0 
+        cX=0
+        M = cv.moments(c)
+        if  M["m00"] !=0:
+            cX = int(M["m10"] / M["m00"])
+            cY = int(M["m01"] / M["m00"])
+        #cv.drawContours(recorte, [c], -1, (0, 255, 0), 2)
+        if abs(cX-wo2) <= abs(closer):
+            closer=cX-wo2
+            cv.circle(img, (cX, cY), 7, (255, 255, 255), -1)
+            cv.putText(img, str, (cX - 20, cY - 20),
+            cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)    
+    return closer, frecorte
+
+
 cv.namedWindow('sliders')
 cv.createTrackbar('tresh','sliders' , 0, 255, nothing)
 cv.createTrackbar('min','sliders' , 0, 255, nothing)
 cv.createTrackbar('max','sliders' , 0, 255, nothing)
+low = np.array([0, 0, 63])
+high = np.array([38, 53, 124])
+tLow = np.array([53, 173, 108])
+tHigh = np.array([56, 202, 255])
+iLow = np.array([58, 205, 241])
+iHigh = np.array([162, 255, 255])
+vHigh= np.array([0,255,195])
+vLow= np.array([0,255,195])
 with mss.mss() as sct:
     while "Screen capturing":
         monitor = {"top":391, "left":119, "width": 444, "height":332}
         img = np.array(sct.grab(monitor))   
         screen = np.array(sct.grab({"top":0, "left":0, "width": 1366, "height":768}))
         screen = cv.resize(screen,(1366,768))
-        #writer.write(screen)
-        keys = ''
+        
         if keyboard.is_pressed('h'):
             dale = True
 
@@ -36,10 +110,7 @@ with mss.mss() as sct:
 
         keys = 'p'
 
-        #im1 = pyautogui.screenshot()
-        #img = np.array(im1)
         frame = img
-        #frame = frame[403:702, 142:540]
         wo2 = 100
         ho2 = 100
         cy = int((monitor["height"])/2)
@@ -47,167 +118,24 @@ with mss.mss() as sct:
         
         recorte = frame[cy-ho2:cy-int(ho2/2), cx-wo2:cx+wo2]
         hsv = cv.cvtColor(recorte, cv.COLOR_BGR2HSV)
-
-        low = np.array([0, 0, 63])
-        high = np.array([38, 53, 124])
-        tLow = np.array([53, 173, 108])
-        tHigh = np.array([56, 202, 255])
-        iLow = np.array([58, 205, 241])
-        iHigh = np.array([162, 255, 255])
-        vHigh= np.array([0,255,195])
-        vLow= np.array([0,255,195])
-
         frecorte = frame[cy-50:cy-5, cx-wo2:cx+wo2]
         fhsv = cv.cvtColor(frecorte, cv.COLOR_BGR2HSV)
-        vfiltro=cv.inRange(hsv,vLow,vHigh)
-        ifiltro = cv.inRange(fhsv, iLow, iHigh)
-        tfiltro = cv.inRange(fhsv, tLow, tHigh)
-        #filtro = cv.inRange(hsv, low, high)
-
-
-
-        #get the roads x pos from the recorte image wihtout using filtro
-        rd=cv.cvtColor(recorte, cv.COLOR_BGR2GRAY)
-        rd=cv.GaussianBlur(rd,(51,51),0)
-        cv.threshold(rd, cv.getTrackbarPos('tresh','sliders'), 255, cv.THRESH_BINARY+cv.THRESH_OTSU, rd)
-        canny = cv.Canny(rd, cv.getTrackbarPos('min','sliders'), cv.getTrackbarPos('max','sliders'))
-
-        cv.imshow('canny', canny)
-
-
-
-
-
-
-
-
-
-        #cv.imshow('itemBox', ifiltro)
-        #cv.imshow('tuberias', tfiltro)
-        #cv.imshow('vuelta',vfiltro)
-        #centro del camino
-        cv.imshow("blor",rd)
         
-        
-        #rd = cv.adaptiveThreshold(rd,255,cv.ADAPTIVE_THRESH_MEAN_C,cv.THRESH_BINARY,11,2)
-        #rd = cv.adaptiveThreshold(rd,255,cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY,11,2)
-        
-        #cv.bitwise_not(rd,rd)
-        #cv.imshow('adaprtive', rd)
-        cnt,_=cv.findContours(rd, cv.RETR_TREE,cv.CHAIN_APPROX_SIMPLE)
-        
-        rx=0
-        closer=50000
-        R=None
-        for c in cnt:
-            M = cv.moments(c)
-            if M["m00"] != 0:
-                RCx = int(M["m10"] / M["m00"])
-                x, y, w, h = cv.boundingRect(c)
-                if abs(RCx-100)<closer:# and w*h>3500:
-                    closer=abs(RCx-100)
-                    rx=RCx
-                    #print(w*h)
-                    R=c
+        #road detection
+        rx, err=detect(hsv,low,high,err)
         print(rx)
-        #Rvals.append(rx)
-        #if len(Rvals)>100:
-            #Rvals.pop(0)
-        if R is not None:
-            
-            cv.drawContours(recorte, [R], -1, (120, 255, 0), 2)
-            #print(recorte.shape)
-            cv.circle(recorte, (rx, 25), 40, (255, 0, 0), 2)
-        else:
-            cfy=int(frecorte["heigth"]/2)
-            cfx=int(frecorte["width"]/2)
-            onlyRoad=frecorte[cfy-10:cfy+10,cfx-10:cfx+10]
-            #recalculate min and max
-            #low=([np.min(),])
-            print("road not found!")
-
-
-        #rx = 0
-        #object = cv.moments(filtro)
-        #if object['m00'] > 5000:
-        #    rx = int(object['m10']/object['m00'])
-        #    cy = int(object['m01']/object['m00'])
-        #    cv.circle(recorte, (rx, cy), 40, (255, 0, 0), 2)
-
-        countours, _ =cv.findContours(tfiltro, cv.RETR_TREE,cv.CHAIN_APPROX_SIMPLE)
-        for cnt in countours:
-            #area=cv.contourArea(cnt)
-            #if area < 50:
-            approx= cv.approxPolyDP(cnt,0.012*cv.arcLength(cnt,True),True)
-            cv.drawContours(recorte, [approx],0,(0,255,0),2)
+        if(err>5) or keyboard.is_pressed('j'):
+            err=0
+            #recalc
+            low,high=recalc(frecorte)
 
         
+        icloser, frecorte=roadfeatures("itembox",iLow,iHigh,frecorte,fhsv)
+        tcloser, frecorte =roadfeatures("tubo",tLow,tHigh,frecorte,fhsv)
 
-        ifiltro = cv.dilate(ifiltro, (15,15), iterations=3)
-
-
-        icloser = 50000
-        cnts = cv.findContours(ifiltro, cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)
-        cnts = imutils.grab_contours(cnts)
-        for c in cnts:
-            M = cv.moments(c)
-            cX=0
-            if  M["m00"] !=0:
-                cX = int(M["m10"] / M["m00"])
-                cY = int(M["m01"] / M["m00"])
-            #cv.drawContours(frecorte, [c], -1, (0, 255, 0), 2)
-            if abs(cX-wo2) <= abs(icloser):
-                icloser= cX-wo2
-                cv.circle(frecorte, (cX, cY), 7, (255, 255, 255), -1)
-                cv.putText(frecorte, "itembox", (cX - 20, cY - 20),
-                cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-            
-        tfiltro = cv.dilate(tfiltro, (15,15), iterations=3)
-        cv.imshow('frecorte',frecorte)
-        tcloser =50000
-        cnts = cv.findContours(tfiltro, cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)
-        cnts = imutils.grab_contours(cnts)
-
-        for c in cnts:
-            cY=0 
-            cX=0
-            M = cv.moments(c)
-            if  M["m00"] !=0:
-                cX = int(M["m10"] / M["m00"])
-                cY = int(M["m01"] / M["m00"])
-            #cv.drawContours(recorte, [c], -1, (0, 255, 0), 2)
-            if abs(cX-wo2) <= abs(tcloser):
-                tcloser=cX-wo2
-                cv.circle(frecorte, (cX, cY), 7, (255, 255, 255), -1)
-                cv.putText(frecorte, "tubo", (cX - 20, cY - 20),
-                cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)    
-
-        cnts = cv.findContours(vfiltro, cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)
-        cnts = imutils.grab_contours(cnts)
         vuelta=False
-        #for c in cnts:
-        #    cY=0 
-        #    cX=0
-        #    M = cv.moments(c)
-        #    cv.drawContours(recorte, [c], -1, (255, 0, 0), 2)
-        #    if  M["m00"] !=0:
-        #        cX = int(M["m10"] / M["m00"])
-        #        cY = int(M["m01"] / M["m00"])
-        #    vuelta = True
-        object = cv.moments(vfiltro)
-        vx=0
-        if object['m00'] > 5000:
-            vx = int(object['m10']/object['m00'])
-            cy = int(object['m01']/object['m00'])
-            cv.circle(recorte, (vx, cy), 40, (255, 0, 0), 2)
-            vuelta=True
-        diferenciaV=vx-wo2
 
-
-        #cv.line(frecorte,(tcloser+wo2,0),(tcloser+wo2,50),(255,0,0),5,1)
-        #print(tcloser, icloser)
-
-
+        diferenciaV=rx-wo2
 
         #vuelta
         diferenciaR = rx-wo2
