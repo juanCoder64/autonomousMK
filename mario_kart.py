@@ -10,39 +10,38 @@ treshold=25
 count=0
 lx=70
 err=0
-#fourcc = cv.VideoWriter_fourcc('m','p','4','v')
 Rvals=[]
-#writer= cv.VideoWriter('marioKart.avi', -1, 20, (1366,768))
-drifting=False
 hold=0
 def nothing ():
     pass
-def recalc(img):
-    print("nroad recalculated")
-    cfy=int(img.shape[0]/2)
-    cfx=int(img.shape[1]/2)
-    delta=10
-    img=frecorte[cfy-10:cfy+10,cfx-10:cfx+10]
-    img=cv.GaussianBlur(img,(51,51),0)
+
+def recalc(fr):
+    print("new road calculated")
+    cy=int(fr.shape[0]/2)
+    cx=int(fr.shape[1]/2)
+    delta=0
+    img=fr[cy-10:cy+10,cx-10:cx+10]
+    #img=cv.GaussianBlur(img,(51,51),0)
     img=cv.cvtColor(img,cv.COLOR_BGR2HSV)
-    Rhue=np.min(img[:,:,0])-delta
-    Rsat=np.min(img[:,:,1])-delta
-    Rval=np.min(img[:,:,2])-delta
-    low=np.array([Rhue,Rsat,Rval])
-    Rhue=np.max(img[:,:,0])+delta
-    Rsat=np.max(img[:,:,1])+delta
-    Rval=np.max(img[:,:,2])+delta
-    high=np.array([Rhue,Rsat,Rval])
+    hue=np.min(img[:,:,0])-delta
+    sat=np.min(img[:,:,1])-delta
+    val=np.min(img[:,:,2])-delta
+    low=np.array([hue,sat,val])
+    hue=np.max(img[:,:,0])+delta
+    sat=np.max(img[:,:,1])+delta
+    val=np.max(img[:,:,2])+delta
+    high=np.array([hue,sat,val])
     cv.imshow("Ncolor",img)
     return low,high
     
 def detect(hsv, low, high, err):
-    rd=cv.GaussianBlur(hsv,(21,21),0)
+    rd=cv.GaussianBlur(hsv,(11,11),0)
     rd=cv.inRange(rd,low,high)
     cnt,_=cv.findContours(rd, cv.RETR_TREE,cv.CHAIN_APPROX_SIMPLE)
     rx=0
     closer=50000
     R=None
+    area=0
     for c in cnt:
             M = cv.moments(c)
             if M["m00"] != 0:
@@ -55,9 +54,13 @@ def detect(hsv, low, high, err):
     if R is not None:
         cv.drawContours(recorte, [R], -1, (120, 255, 0), 2)
         cv.circle(recorte, (rx, 25), 40, (255, 0, 0), 2)
+        area=cv.contourArea(R)
+
     else:
         #recalculate min and max
         print("road not found!" )
+        err+=1
+    if area < 100:
         err+=1
     return rx,err
 
@@ -95,6 +98,7 @@ iLow = np.array([58, 205, 241])
 iHigh = np.array([162, 255, 255])
 vHigh= np.array([0,255,195])
 vLow= np.array([0,255,195])
+
 with mss.mss() as sct:
     while "Screen capturing":
         monitor = {"top":391, "left":119, "width": 444, "height":332}
@@ -123,7 +127,8 @@ with mss.mss() as sct:
         
         #road detection
         rx, err=detect(hsv,low,high,err)
-        print(rx)
+        cv.imshow("road",frecorte)
+        #print(rx)
         if(err>5) or keyboard.is_pressed('j'):
             err=0
             #recalc
@@ -140,26 +145,13 @@ with mss.mss() as sct:
         #vuelta
         diferenciaR = rx-wo2
         #print(tcloser,icloser,treshold)
-        if drifting: 
-            treshold-=3
+        
         road=abs(diferenciaR) > treshold
         tubo= abs(tcloser)<10
         box=abs(icloser)<5
-        #print(road,tubo,box)
         if road or  tubo or box:
-            #print(diferenciaR)
-            #if abs(diferenciaR*road) > 20 and abs(diferenciaR*road) < 30 :
-            #    if len(keys) != 0:
-            #        keys += '+'
-            #    keys += 'w'
-            #else:
-            #    keyboard.release('w')
-
             if tubo:
                 road=1
-
-            #if vuelta: 
-                #road=True
 
             if diferenciaR*road < 0 or icloser*box<0 or diferenciaV*vuelta<0:
                 keyboard.release('q')
@@ -168,7 +160,6 @@ with mss.mss() as sct:
                     keys += '+'
                 keys += 'a'
                 
-
             if diferenciaR*road > 0  or icloser*box>0 or diferenciaV*vuelta>0:
                 keyboard.release('q')
                 keyboard.release('a')
@@ -176,29 +167,10 @@ with mss.mss() as sct:
                     keys += '+'
                 keys += 'd'
             
-            if drifting:
-                count+=1
-                if count %2:
-                    keyboard.release('a')
-                    keyboard.press('d')
-                else:
-                    keyboard.release('d')
-                    keyboard.press('a')
-
-            
             if road :
                 treshold=abs(diferenciaR)-1
-            if vuelta and not drifting:
-                drifting = True
-                #print("drifting!")
-                keyboard.press('e')
-            if not vuelta:
-                drifting=0
-                keyboard.release('e')
+            
         else:
-
-            drifting=False
-            keyboard.release('e')
             if treshold > 10:
                 treshold-=1
             if len(keys) != 0:
@@ -211,8 +183,6 @@ with mss.mss() as sct:
         cv.imshow('recorte', recorte)
 
         keyboard.release('p')
-        
-        #cv.imshow('screen', screen)
         
         if len(keys) != 0 and dale:
             keyboard.send(keys, 1, 0)
