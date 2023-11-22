@@ -1,4 +1,4 @@
-# Autonomous Mario Kart Driving System
+# Autonomous Mario Kart DS Driving System
 
 This repository contains code for an autonomous driving system for Mario Kart using computer vision and machine learning. The system uses OpenCV for image processing and a neural network trained with Keras for decision-making. The code is divided into three main files: `mario_kart.py` for running the neural network, capturing and processing game frames, `train_data.py` for training the neural network, and `no_ai.py` for running the autonomous driving system.
 
