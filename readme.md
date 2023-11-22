@@ -1,8 +1,8 @@
 # Autonomous Mario Kart DS Driving System
 
-This repository contains code for an autonomous driving system for Mario Kart using computer vision and machine learning. The system uses OpenCV for image processing and a neural network trained with Keras for decision-making. The code is divided into three main files: `mario_kart.py` for running the neural network, capturing and processing game frames, `train_data.py` for training the neural network, and `no_ai.py` for running the autonomous driving system.
+This repository contains code for an autonomous driving system for Mario Kart using computer vision and machine learning. The system uses OpenCV for image processing and a neural network trained with Keras for decision-making. The code is divided into three main files: `MK_data.py` for running the neural network, capturing and processing game frames, `train_data.py` for training the neural network, and `no_ai.py` for running the autonomous driving system.
 
-## `mario_kart.py`
+## `MK_data.py`
 
 This Python script captures the game frames using the mss library, processes the images using computer vision techniques, and controls the Mario Kart game through keyboard inputs using inferences by a pretrained model. The key features include:
 
@@ -21,26 +21,26 @@ This script is responsible for training the neural network using pre-recorded ga
 
 ## `no_ai.py`
 
-Similar to `mario_kart.py`, this script captures and processes game frames in real-time. However, instead of relying on a pre-trained neural network, it uses predefined rules and logic for decision-making. It serves as a comparison to the autonomous system powered by machine learning.
+Similar to `MK_data.py`, this script captures and processes game frames in real-time. However, instead of relying on a pre-trained neural network, it uses predefined rules and logic for decision-making. It serves as a comparison to the autonomous system powered by machine learning.
 
 ## Usage
 
 1. Run `train_data.py` to train the neural network and save the model.
-2. Run `mario_kart.py` to activate the autonomous driving system using the trained model.
+2. Run `MK_data.py` to activate the autonomous driving system using the trained model.
 3. Optionally, run `no_ai.py` to compare the performance of the rule-based system.
 ## Important Adjustments
 
 Before running the scripts, it's crucial to make the following adjustments to ensure compatibility with your specific Mario Kart game setup:
 
 1. **Screen Coordinates:**
-   - In both `mario_kart.py` and `no_ai.py`, adjust the `monitor` dictionary to match the coordinates and dimensions of your Mario Kart game window. Update the values for `"top"`, `"left"`, `"width"`, and `"height"` accordingly.
+   - In both `MK_data.py` and `no_ai.py`, adjust the `monitor` dictionary to match the coordinates and dimensions of your Mario Kart game window. Update the values for `"top"`, `"left"`, `"width"`, and `"height"` accordingly.
 
 ```python
 monitor = {"top": 391, "left": 119, "width": 444, "height": 332}
 ```
 
 2. **Color Thresholds:**
-   - Fine-tune the color threshold values in `mario_kart.py` to match the colors of the lanes, item boxes, and pipes in your game. Adjust the values in the `low`, `high`, `tLow`, `tHigh`, `iLow`, and `iHigh` arrays accordingly.
+   - Fine-tune the color threshold values in `MK_data.py` to match the colors of the lanes, item boxes, and pipes in your game. Adjust the values in the `low`, `high`, `tLow`, `tHigh`, `iLow`, and `iHigh` arrays accordingly.
 
 ```python
 low = np.array([0, 0, 63])
