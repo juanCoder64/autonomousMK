@@ -1,0 +1,8 @@
+# Ignore all files in this folder
+*
+# Except for the following files
+!noAI.py
+!readme.md
+!trainData.py
+!mario_kart.py
+!.gitignore
