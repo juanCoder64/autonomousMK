@@ -24,8 +24,8 @@ This script is responsible for training the neural network using pre-recorded ga
 Similar to `MK_data.py`, this script captures and processes game frames in real-time. However, instead of relying on a pre-trained neural network, it uses predefined rules and logic for decision-making. It serves as a comparison to the autonomous system powered by machine learning.
 
 ## Usage
-1. Adjust the screen capturing as it is specified in [Screen Coordinates](##Important Adjustments) 
-2. Run `MK_data.py` to activate the autonomous driving system using the trained model.
+
+2. Run `MK_data.py`, adjust the screen if it is the first time running it, and press h to make the AI play 
 3. Optionally, run `no_ai.py` to compare the performance of the rule-based system.
 ## .CSV structure
 the data in the csv file is in the following order
