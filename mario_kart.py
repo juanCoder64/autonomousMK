@@ -1,6 +1,8 @@
 import cv2 as cv
+import os 
 import numpy as np
 #import pyautogui
+import adjust_screen
 import keyboard
 import imutils
 import mss
@@ -33,7 +35,7 @@ def recalc(fr):
     high=np.array([hue,sat,val])
     cv.imshow("Ncolor",img)
     return low,high
-    
+
 def detect(hsv, low, high, err):
     rd=cv.GaussianBlur(hsv,(11,11),0)
     rd=cv.inRange(rd,low,high)
@@ -43,14 +45,14 @@ def detect(hsv, low, high, err):
     R=None
     area=0
     for c in cnt:
-            M = cv.moments(c)
-            if M["m00"] != 0:
-                RCx = int(M["m10"] / M["m00"])
-                x, y, w, h = cv.boundingRect(c)
-                if abs(RCx-100)<closer:# and w*h>3500:
-                    closer=abs(RCx-100)
-                    rx=RCx
-                    R=c
+        M = cv.moments(c)
+        if M["m00"] != 0:
+            RCx = int(M["m10"] / M["m00"])
+            x, y, w, h = cv.boundingRect(c)
+            if abs(RCx-100)<closer:# and w*h>3500:
+                closer=abs(RCx-100)
+                rx=RCx
+                R=c
     if R is not None:
         cv.drawContours(recorte, [R], -1, (120, 255, 0), 2)
         cv.circle(recorte, (rx, 25), 40, (255, 0, 0), 2)
@@ -82,14 +84,10 @@ def roadfeatures(str, low, high, img, hsv):
             closer=cX-wo2
             cv.circle(img, (cX, cY), 7, (255, 255, 255), -1)
             cv.putText(img, str, (cX - 20, cY - 20),
-            cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)    
+                       cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)    
     return closer, frecorte
 
 
-cv.namedWindow('sliders')
-cv.createTrackbar('tresh','sliders' , 0, 255, nothing)
-cv.createTrackbar('min','sliders' , 0, 255, nothing)
-cv.createTrackbar('max','sliders' , 0, 255, nothing)
 low = np.array([0, 0, 63])
 high = np.array([38, 53, 124])
 tLow = np.array([53, 173, 108])
@@ -99,13 +97,30 @@ iHigh = np.array([162, 255, 255])
 vHigh= np.array([0,255,195])
 vLow= np.array([0,255,195])
 
+if(os.path.isfile("config")):
+    f=open("config","r")
+    t=int(f.readline())
+    l=int(f.readline())
+    w=int(f.readline())
+    h=int(f.readline())
+    f.close()
+    print("config loaded")
+else:
+    t,l,w,h=adjust_screen.getValues()
+    f=open("config","w")
+    f.write(str(t)+"\n")
+    f.write(str(l)+"\n")
+    f.write(str(w)+"\n")    
+    f.write(str(h)+"\n")
+    f.close()
+    print("config saved")
+
+
 with mss.mss() as sct:
     while "Screen capturing":
-        monitor = {"top":391, "left":119, "width": 444, "height":332}
+        monitor = {"top":t, "left":l, "width": w, "height":h}
         img = np.array(sct.grab(monitor))   
-        screen = np.array(sct.grab({"top":0, "left":0, "width": 1366, "height":768}))
-        screen = cv.resize(screen,(1366,768))
-        
+
         if keyboard.is_pressed('h'):
             dale = True
 
@@ -119,33 +134,32 @@ with mss.mss() as sct:
         ho2 = 100
         cy = int((monitor["height"])/2)
         cx = int((monitor["width"])/2)
-        
+
         recorte = frame[cy-ho2:cy-int(ho2/2), cx-wo2:cx+wo2]
         hsv = cv.cvtColor(recorte, cv.COLOR_BGR2HSV)
         frecorte = frame[cy-50:cy-5, cx-wo2:cx+wo2]
         fhsv = cv.cvtColor(frecorte, cv.COLOR_BGR2HSV)
-        
+
         #road detection
         rx, err=detect(hsv,low,high,err)
         cv.imshow("road",frecorte)
         #print(rx)
+        #if the road is not found for 5 frames or j is pressed it recalculates the road threshold
         if(err>5) or keyboard.is_pressed('j'):
             err=0
             #recalc
             low,high=recalc(frecorte)
 
-        
-        icloser, frecorte=roadfeatures("itembox",iLow,iHigh,frecorte,fhsv)
-        tcloser, frecorte =roadfeatures("tubo",tLow,tHigh,frecorte,fhsv)
+
+        icloser, frecorte=roadfeatures("itembox",iLow,iHigh,frecorte,fhsv)#get closest itembox
+        tcloser, frecorte =roadfeatures("tubo",tLow,tHigh,frecorte,fhsv)#get closest tube
 
         vuelta=False
-
-        diferenciaV=rx-wo2
 
         #vuelta
         diferenciaR = rx-wo2
         #print(tcloser,icloser,treshold)
-        
+
         road=abs(diferenciaR) > treshold
         tubo= abs(tcloser)<10
         box=abs(icloser)<5
@@ -153,23 +167,23 @@ with mss.mss() as sct:
             if tubo:
                 road=1
 
-            if diferenciaR*road < 0 or icloser*box<0 or diferenciaV*vuelta<0:
+            if diferenciaR*road < 0 or icloser*box<0 or diferenciaR*vuelta<0:
                 keyboard.release('q')
                 keyboard.release('d')
                 if len(keys) != 0:
                     keys += '+'
                 keys += 'a'
-                
-            if diferenciaR*road > 0  or icloser*box>0 or diferenciaV*vuelta>0:
+
+            if diferenciaR*road > 0  or icloser*box>0 or diferenciaR*vuelta>0:
                 keyboard.release('q')
                 keyboard.release('a')
                 if len(keys) != 0:
                     keys += '+'
                 keys += 'd'
-            
+
             if road :
                 treshold=abs(diferenciaR)-1
-            
+
         else:
             if treshold > 10:
                 treshold-=1
@@ -183,7 +197,7 @@ with mss.mss() as sct:
         cv.imshow('recorte', recorte)
 
         keyboard.release('p')
-        
+
         if len(keys) != 0 and dale:
             keyboard.send(keys, 1, 0)
 
