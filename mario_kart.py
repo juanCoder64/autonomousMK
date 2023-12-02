@@ -6,37 +6,33 @@ import adjust_screen
 import keyboard
 import imutils
 import mss
+
 dale = False
 #392 145 392 293
 treshold=25
-count=0
-lx=70
 err=0
-Rvals=[]
-hold=0
-def nothing ():
-    pass
 
-def recalc(fr):
-    print("new road calculated")
+def getRoadColor(fr):
     cy=int(fr.shape[0]/2)
     cx=int(fr.shape[1]/2)
-    delta=0
-    img=fr[cy-10:cy+10,cx-10:cx+10]
+    delta=50
+    img=fr[cy-15:cy+15,cx-15:cx+15]
+    #use color of biggest contour
     #img=cv.GaussianBlur(img,(51,51),0)
     img=cv.cvtColor(img,cv.COLOR_BGR2HSV)
-    hue=np.min(img[:,:,0])-delta
-    sat=np.min(img[:,:,1])-delta
-    val=np.min(img[:,:,2])-delta
-    low=np.array([hue,sat,val])
-    hue=np.max(img[:,:,0])+delta
-    sat=np.max(img[:,:,1])+delta
-    val=np.max(img[:,:,2])+delta
-    high=np.array([hue,sat,val])
+    vals=[0,0,0]
+    for i in range(3):
+        vals[i]=np.average(img[:,:,i])-delta
+    low=np.array(vals)
+    for i in range(3):
+        vals[i]=np.average(img[:,:,i])+delta
+        #vals[i]=np.max(img[:,:,i])+delta
+    high=np.array(vals)
     cv.imshow("Ncolor",img)
+    print("new road color calibration calculated")
     return low,high
 
-def detect(hsv, low, high, err):
+def detectRoad(hsv, low, high, err):
     rd=cv.GaussianBlur(hsv,(11,11),0)
     rd=cv.inRange(rd,low,high)
     cnt,_=cv.findContours(rd, cv.RETR_TREE,cv.CHAIN_APPROX_SIMPLE)
@@ -54,19 +50,20 @@ def detect(hsv, low, high, err):
                 rx=RCx
                 R=c
     if R is not None:
-        cv.drawContours(recorte, [R], -1, (120, 255, 0), 2)
-        cv.circle(recorte, (rx, 25), 40, (255, 0, 0), 2)
+        cv.drawContours(roadFront, [R], -1, (120, 255, 0), 2)
+        cv.circle(roadFront, (rx, 25), 40, (255, 0, 0), 2)
         area=cv.contourArea(R)
-
     else:
         #recalculate min and max
         print("road not found!" )
         err+=1
     if area < 100:
         err+=1
+    if area/(hsv.shape[0]*hsv.shape[1]) >.8:
+        err+=1
     return rx,err
 
-def roadfeatures(str, low, high, img, hsv):
+def detectFeatures(str, low, high, img, hsv):
     filtro = cv.inRange(hsv,low, high)
     filtro = cv.dilate(filtro, (15,15), iterations=3)
     closer =50000
@@ -85,7 +82,7 @@ def roadfeatures(str, low, high, img, hsv):
             cv.circle(img, (cX, cY), 7, (255, 255, 255), -1)
             cv.putText(img, str, (cX - 20, cY - 20),
                        cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)    
-    return closer, frecorte
+    return closer,img 
 
 
 low = np.array([0, 0, 63])
@@ -119,7 +116,7 @@ else:
 with mss.mss() as sct:
     while "Screen capturing":
         monitor = {"top":t, "left":l, "width": w, "height":h}
-        img = np.array(sct.grab(monitor))   
+        frame = np.array(sct.grab(monitor))   
 
         if keyboard.is_pressed('h'):
             dale = True
@@ -129,30 +126,29 @@ with mss.mss() as sct:
 
         keys = 'p'
 
-        frame = img
         wo2 = 100
         ho2 = 100
         cy = int((monitor["height"])/2)
         cx = int((monitor["width"])/2)
 
-        recorte = frame[cy-ho2:cy-int(ho2/2), cx-wo2:cx+wo2]
-        hsv = cv.cvtColor(recorte, cv.COLOR_BGR2HSV)
-        frecorte = frame[cy-50:cy-5, cx-wo2:cx+wo2]
-        fhsv = cv.cvtColor(frecorte, cv.COLOR_BGR2HSV)
+        roadFront = frame[cy-ho2:cy-int(ho2/2), cx-wo2:cx+wo2]
+        hsv = cv.cvtColor(roadFront, cv.COLOR_BGR2HSV)
+        playerFront = frame[cy-50:cy-5, cx-wo2:cx+wo2]
+        fhsv = cv.cvtColor(playerFront, cv.COLOR_BGR2HSV)
 
         #road detection
-        rx, err=detect(hsv,low,high,err)
-        cv.imshow("road",frecorte)
+        rx, err=detectRoad(hsv,low,high,err)
+        cv.imshow("playerFront",playerFront)
         #print(rx)
         #if the road is not found for 5 frames or j is pressed it recalculates the road threshold
-        if(err>5) or keyboard.is_pressed('j'):
+        if(err>7) or keyboard.is_pressed('j'):
             err=0
             #recalc
-            low,high=recalc(frecorte)
+            low,high=getRoadColor(playerFront)
 
 
-        icloser, frecorte=roadfeatures("itembox",iLow,iHigh,frecorte,fhsv)#get closest itembox
-        tcloser, frecorte =roadfeatures("tubo",tLow,tHigh,frecorte,fhsv)#get closest tube
+        icloser, playerFront=detectFeatures("itembox",iLow,iHigh,playerFront,fhsv)#get closest itembox
+        tcloser, playerFront =detectFeatures("tubo",tLow,tHigh,playerFront,fhsv)#get closest tube
 
         vuelta=False
 
@@ -194,7 +190,7 @@ with mss.mss() as sct:
             keyboard.release('d')
 
         cv.imshow('contours', frame)
-        cv.imshow('recorte', recorte)
+        cv.imshow('roadFront',roadFront)
 
         keyboard.release('p')
 
