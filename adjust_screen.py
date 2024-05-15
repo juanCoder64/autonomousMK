@@ -1,26 +1,33 @@
 import cv2 as cv
+import keyboard
 import numpy as np
 import mss
 
-def nothing (val):
-    pass
+#def nothing (val):
+##
 def getValues():
-    print("Adjust the capture area to lower screen, press d when done")
-    cv.namedWindow('sliders')
-    cv.createTrackbar('x','sliders', 0, 10000,nothing)
-    cv.createTrackbar('y','sliders', 0, 10000,nothing)
-    cv.createTrackbar('w','sliders', 100, 10000,nothing)
-    cv.createTrackbar('h','sliders', 100, 10000,nothing)
+    x=0
+    y=0
+    w=600
+    h=100
+    print("Adjust the capture area to lower screen, press f when done")
+    print("Use WASD to move the screen")
+    print("Use arrow keys to scale the screen")
     with mss.mss() as sct:
         while True:
-            x = cv.getTrackbarPos('x', 'sliders')
-            y = cv.getTrackbarPos('y', 'sliders')
-            w = cv.getTrackbarPos('w', 'sliders')
-            h = cv.getTrackbarPos('h', 'sliders')
+            x=x+(keyboard.is_pressed("d"))
+            x=x-(keyboard.is_pressed("a"))
+            y=y-(keyboard.is_pressed("w"))
+            y=y+(keyboard.is_pressed("s"))
+            w=w-(keyboard.is_pressed("left"))
+            w=w+(keyboard.is_pressed("right"))
+            h=h-(keyboard.is_pressed("up"))
+            h=h+(keyboard.is_pressed("down"))
+
             monitor = {'top': y, 'left': x, 'width': w, 'height': h}
             img = np.array(sct.grab(monitor))
             cv.imshow('screen', img)
-            if cv.waitKey(1) == ord('d'):
+            if cv.waitKey(1) == ord('f'):
                 break
     cv.destroyAllWindows()
     return x,y,w,h
