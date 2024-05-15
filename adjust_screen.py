@@ -7,10 +7,10 @@ def nothing (val):
 def getValues():
     print("Adjust the capture area to lower screen, press d when done")
     cv.namedWindow('sliders')
-    cv.createTrackbar('x','sliders', 0, 1000,nothing) 
-    cv.createTrackbar('y','sliders', 0, 1000,nothing)
-    cv.createTrackbar('w','sliders', 100, 1000,nothing)
-    cv.createTrackbar('h','sliders', 100, 1000,nothing)
+    cv.createTrackbar('x','sliders', 0, 10000,nothing)
+    cv.createTrackbar('y','sliders', 0, 10000,nothing)
+    cv.createTrackbar('w','sliders', 100, 10000,nothing)
+    cv.createTrackbar('h','sliders', 100, 10000,nothing)
     with mss.mss() as sct:
         while True:
             x = cv.getTrackbarPos('x', 'sliders')
