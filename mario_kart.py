@@ -115,7 +115,7 @@ else:
 
 with mss.mss() as sct:
     while "Screen capturing":
-        monitor = {"top":t, "left":l, "width": w, "height":h}
+        monitor = {"top":l, "left":t, "width": w, "height":h}
         frame = np.array(sct.grab(monitor))   
 
         if keyboard.is_pressed('h'):
@@ -124,7 +124,7 @@ with mss.mss() as sct:
         if keyboard.is_pressed('g'):
             dale = False
 
-        keys = 'p'
+        keys = 'l'
 
         wo2 = 100
         ho2 = 100
