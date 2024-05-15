@@ -54,7 +54,7 @@ with mss.mss() as sct:
         fhsv = cv.cvtColor(frecorte, cv.COLOR_BGR2HSV)
         vfiltro=cv.inRange(hsv,vLow,vHigh)
         ifiltro = cv.inRange(fhsv, iLow, iHigh)
-        tfiltro = cv.inRange(fhsvfhsv, tLow, tHigh)
+        tfiltro = cv.inRange(fhsv, tLow, tHigh)
         filtro = cv.inRange(hsv, low, high)
 
         cv.imshow('itemBox', ifiltro)
