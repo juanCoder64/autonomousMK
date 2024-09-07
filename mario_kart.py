@@ -1,11 +1,10 @@
 import cv2 as cv
 import os
 import numpy as np
-#import pyautogui
-import adjust_screen
 import keyboard
 import imutils
 import mss
+import adjust_screen
 
 dale = False
 #392 145 392 293
@@ -14,6 +13,7 @@ err = 0
 
 
 def getRoadColor(fr):
+    #maybe in the future i wil add adaptive road detection
     cy = int(fr.shape[0] / 2)
     cx = int(fr.shape[1] / 2)
     delta = 50
@@ -37,23 +37,25 @@ def getRoadColor(fr):
 def detectRoad(hsv, low, high, err):
     rd = cv.GaussianBlur(hsv, (11, 11), 0)
     rd = cv.inRange(rd, low, high)
+    cv.imshow("roadModified",rd)
     cnt, _ = cv.findContours(rd, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
     rx = 0
-    closer = 50000
+    area=0
+    maxArea=0
     R = None
-    area = 0
     for c in cnt:
         M = cv.moments(c)
         if M["m00"] != 0:
             RCx = int(M["m10"] / M["m00"])
-            #x, y, w, h = cv.boundingRect(c)
-            if abs(RCx - 100) < closer:  # and w*h>3500:
-                closer = abs(RCx - 100)
+            area = cv.contourArea(c)
+            if area>maxArea:#abs(RCx - 100) < closer:  # and w*h>3500:
+                #closer = abs(RCx - 100)
+                maxArea = area
                 rx = RCx
                 R = c
     if R is not None:
-        cv.drawContours(roadFront, [R], -1, (120, 255, 0), 2)
-        cv.circle(roadFront, (rx, 25), 40, (255, 0, 0), 2)
+        cv.drawContours(roadView, [R], -1, (120, 255, 0), 2)
+        cv.circle(roadView, (rx, 25), 40, (255, 0, 0), 2)
         area = cv.contourArea(R)
     else:
         #recalculate min and max
@@ -80,8 +82,8 @@ def detectFeatures(str, low, high, img, hsv):
             cX = int(M["m10"] / M["m00"])
             cY = int(M["m01"] / M["m00"])
         #cv.drawContours(recorte, [c], -1, (0, 255, 0), 2)
-        if abs(cX - wo2) <= abs(closer):
-            closer = cX - wo2
+        if abs(cX - cx) <= abs(closer):
+            closer = cX - cx
             cv.circle(img, (cX, cY), 7, (255, 255, 255), -1)
             cv.putText(img, str, (cX - 20, cY - 20),
                        cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
@@ -97,6 +99,7 @@ iHigh = np.array([162, 255, 255])
 vHigh = np.array([0, 255, 195])
 vLow = np.array([0, 255, 195])
 
+## check if setup has been run
 if os.path.isfile("config"):
     f = open("config", "r")
     t = int(f.readline())
@@ -128,25 +131,22 @@ with mss.mss() as sct:
 
         keys = 'l'
 
-        wo2 = 100
-        ho2 = 100
         cy = int((monitor["height"]) / 2)
         cx = int((monitor["width"]) / 2)
-
-        roadFront = frame[cy - ho2:cy - int(ho2 / 2), cx - wo2:cx + wo2]
-        hsv = cv.cvtColor(roadFront, cv.COLOR_BGR2HSV)
-        playerFront = frame[cy - 50:cy - 5, cx - wo2:cx + wo2]
+        roadView = frame[int(h*.2):int(h*.35),  int(w*.3):int(w*.7)]
+        hsv = cv.cvtColor(roadView, cv.COLOR_BGR2HSV)
+        playerView = frame[int(h*.3):int(h*.4), int(w*.4):int(w*.6)]
         fhsv = cv.cvtColor(playerFront, cv.COLOR_BGR2HSV)
 
         #road detection
-        rx, err = detectRoad(hsv, low, high, err)
+        roadX, err = detectRoad(hsv, low, high, err)
         cv.imshow("playerFront", playerFront)
         #print(rx)
         #if the road is not found for 5 frames or j is pressed it recalculates the road threshold
-        if (err > 7) or keyboard.is_pressed('j'):
-            err = 0
-            #recalc
-            low, high = getRoadColor(playerFront)
+        #if (err > 7) or keyboard.is_pressed('j'):
+        #    err = 0
+        #    #recalc
+        #    low, high = getRoadColor(playerFront)
 
         icloser, playerFront = detectFeatures("itembox", iLow, iHigh, playerFront, fhsv)  #get closest itembox
         tcloser, playerFront = detectFeatures("tubo", tLow, tHigh, playerFront, fhsv)  #get closest tube
@@ -154,9 +154,9 @@ with mss.mss() as sct:
         turning = False
 
         #vuelta
-        roadDelta = rx - wo2
+        roadDelta = roadX - cx
         #print(tcloser,icloser,treshold)
-
+        ## all of this should be commented out
         road = abs(roadDelta) > threshold
         tubo = abs(tcloser) < 10
         box = abs(icloser) < 5
@@ -179,7 +179,7 @@ with mss.mss() as sct:
                 keys += 'd'
 
             if road:
-                threshold = abs(roadDelta) - 1
+                threshold = abs(roadDelta) - 1 ## que onda con esto
 
         else:
             if threshold > 10:
@@ -191,7 +191,7 @@ with mss.mss() as sct:
             keyboard.release('d')
 
         cv.imshow('contours', frame)
-        cv.imshow('roadFront', roadFront)
+        cv.imshow('roadView', roadView)
 
         keyboard.release('p')
 
